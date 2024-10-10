@@ -1,0 +1,229 @@
+---
+- name: Install & Configure Libreswan, FRR for Site-to-Site IPSec VPN to OCI
+  hosts: all
+  become: true
+  vars_files:
+    - ./vars.yml
+
+  tasks:
+    - name: Disable SELinux
+      ansible.posix.selinux:
+        state: disabled # TODO permissive?
+
+    # Install required packages
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name:
+          - libreswan
+          - frr
+        state: present
+
+    # Enable IP forwarding
+    - name: Configure IP forwarding
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true # sysctl -p
+      loop:
+        - { name: 'net.ipv4.ip_forward', value: '1' }
+        - { name: 'net.ipv4.conf.all.accept_redirects', value: '0' }
+        - { name: 'net.ipv4.conf.all.send_redirects', value: '0' }
+        - { name: 'net.ipv4.conf.default.send_redirects', value: '0' }
+        - { name: 'net.ipv4.conf.default.accept_redirects', value: '0' }
+        - { name: 'net.ipv4.conf.{{ ansible_default_ipv4.interface }}.accept_redirects', value: '0' }
+        - { name: 'net.ipv4.conf.{{ ansible_default_ipv4.interface }}.send_redirects', value: '0' }
+
+    - name: Configure Libreswan ipsec.conf
+      ansible.builtin.copy:
+        content: |
+          config setup
+              plutodebug=all
+              plutostderrlog=/var/log/pluto.log
+              protostack=auto
+
+          conn oracle-tunnel-1
+              left={{ cpe_local_private_ip }}
+              leftid={{ cpe_public_ipv4 }} # 1-1 NATing
+              right={{ oracle_headend_tun_a }}
+              rightid={{ oracle_headend_tun_a }}
+              authby=secret
+              leftsubnet=0.0.0.0/0
+              rightsubnet=0.0.0.0/0
+              auto=start
+              mark=5/0xffffffff
+              vti-interface={{ vti_a }}
+              leftvti={{ vti_a_local_ip }}/30
+              # leftnexthop=%defaultroute
+              vti-routing=no
+              ikev2=yes
+              ike=aes_cbc256-sha2_384;modp1536
+              phase2alg=aes_gcm256;modp1536
+              encapsulation=yes
+              ikelifetime=28800s
+              salifetime=3600s
+              pfs=yes
+
+          conn oracle-tunnel-2
+              left={{ cpe_local_private_ip }}
+              leftid={{ cpe_public_ipv4 }} # 1-1 NATing
+              right={{ oracle_headend_tun_b }}
+              rightid={{ oracle_headend_tun_b }}
+              authby=secret
+              leftsubnet=0.0.0.0/0
+              rightsubnet=0.0.0.0/0
+              auto=start
+              mark=6/0xffffffff
+              vti-interface={{ vti_b }}
+              leftvti={{ vti_b_local_ip }}/30
+              # leftnexthop=%defaultroute
+              vti-routing=no
+              ikev2=yes
+              ike=aes_cbc256-sha2_384;modp1536
+              phase2alg=aes_gcm256;modp1536
+              encapsulation=yes
+              ikelifetime=28800s
+              salifetime=3600s
+              pfs=yes
+        dest: /etc/ipsec.d/oci-ipsec.conf
+        mode: '0600'
+
+    - name: Configure Libreswan ipsec.secrets
+      ansible.builtin.copy:
+        content: |
+          {{ cpe_public_ipv4 }} {{ oracle_headend_tun_a }} : PSK "{{ psk_tun_a }}"
+          {{ cpe_public_ipv4 }} {{ oracle_headend_tun_b }} : PSK "{{ psk_tun_b }}"
+        dest: /etc/ipsec.d/oci-ipsec.secrets
+        mode: '0600'
+
+    - name: Enable and Start ipsec service
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: restarted
+      loop:
+        - ipsec
+
+    - name: Add Static IP Routes
+      ansible.builtin.shell: |
+        ip route add {{ remote_vcn_cidr }} nexthop dev {{ vti_a }} nexthop dev {{ vti_b }}
+      changed_when: false
+
+    - name: Configure FRR daemons
+      ansible.builtin.copy:
+        content: |
+          bgpd=yes
+          frr_profile="datacenter"
+          # service integrated-vtysh-config
+          # vtysh_enable=yes
+          # zebra_options="  -A 127.0.0.1 -s 90000000"
+          # bgpd_options="   -A 127.0.0.1"
+          # staticd_options="-A 127.0.0.1"
+        dest: /etc/frr/daemons
+        mode: '0600'
+
+    - name: Configure FRR bgpd.conf
+      ansible.builtin.copy:
+        content: |
+          log file /var/log/frr/frr.log
+          !
+          interface {{ ansible_default_ipv4.interface }}
+           ipv6 nd suppress-ra
+          !
+          interface {{ vti_a }}
+           ip address {{ vti_a_local_ip }}/30
+           ipv6 nd suppress-ra
+          !
+          interface {{ vti_b }}
+           ip address {{ vti_b_local_ip }}/30
+           ipv6 nd suppress-ra
+          !
+          router bgp {{ bgp_asn_local }}
+           bgp router-id {{ bgp_router_id }}
+           neighbor {{ vti_a_remote_ip }} remote-as {{ bgp_asn_remote }}
+           neighbor {{ vti_b_remote_ip }} remote-as {{ bgp_asn_remote }}
+           neighbor {{ vti_a_remote_ip }} ebgp-multihop 255
+           neighbor {{ vti_a_remote_ip }} next-hop-self
+           neighbor {{ vti_b_remote_ip }} ebgp-multihop 255
+           neighbor {{ vti_b_remote_ip }} next-hop-self
+           !
+           address-family ipv4 unicast
+            network {{ cpe_onprem_vcn_cidr }}
+            network {{ vti_a_remote_ip }}/30
+            network {{ vti_b_remote_ip }}/30
+            neighbor {{ vti_a_remote_ip }} activate
+            neighbor {{ vti_b_remote_ip }} activate
+            redistribute static
+           exit-address-family
+           !
+           line vty
+           !
+        dest: /etc/frr/frr.conf
+        mode: '0600'
+      # notify: Restart frr
+
+    - name: Allow IPSec and BGP traffic in firewall
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        permanent: true
+        state: enabled
+      loop:
+        - 500/udp
+        - 4500/udp
+        - 179/tcp  # BGP port
+
+    - name: Allow ESP protocol in firewall
+      ansible.posix.firewalld:
+        rich_rule: 'rule protocol value="esp" accept'
+        permanent: true
+        state: enabled
+
+    - name: Reload firewall to apply changes
+      ansible.builtin.systemd:
+        name: firewalld
+        state: reloaded
+
+    - name: Disable firewalld # TODO remove after debugging
+      ansible.builtin.systemd:
+        name: firewalld
+        state: stopped
+        enabled: false
+
+    - name: Enable and Start ipsec and frr services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: restarted
+      loop:
+        - ipsec
+        - frr
+
+    - name: Get Status
+      ansible.builtin.shell: |
+        ifconfig
+        ip route show
+        systemctl status ipsec
+        systemctl status frr
+        vtysh -c "show running-config"
+        vtysh -c "sh run"
+        vtysh -c "sh bgp sum"
+        cat /etc/frr/vtysh.conf
+        cat /etc/frr/frr.conf
+        sleep 10; vtysh -c "show ip bgp neighbors"
+      register: tunnel_activation_result
+      changed_when: false
+
+    - name: Display tunnel activation output
+      ansible.builtin.debug:
+        var: tunnel_activation_result
+
+  handlers:
+    - name: Restart ipsec
+      ansible.builtin.systemd:
+        name: ipsec
+        state: restarted
+
+    - name: Restart frr
+      ansible.builtin.systemd:
+        name: frr
+        state: restarted
