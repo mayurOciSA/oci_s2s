@@ -53,14 +53,8 @@ resource "oci_core_ipsec_connection_tunnel_management" "oci-ipsec-connection-tun
   tunnel_id  = data.oci_core_ipsec_connection_tunnels.oci-ipsec-connection-tunnels.ip_sec_connection_tunnels[0].id
   depends_on = [data.oci_core_ipsec_connections.oci-ipsec-connections]
 
-  bgp_session_info {
-    customer_bgp_asn      = var.onprem_bgp_asn
-    customer_interface_ip = "${var.bgp_onprem_tunnel_a_ip}/30"
-    oracle_interface_ip   = "${var.bgp_oci_tunnel_a_ip}/30"
-  }
-
   display_name  = "oci-ipsec-tunnel-a"
-  routing       = "BGP"
+  routing       = "STATIC"
   shared_secret = var.psk_tunnel_a
   ike_version   = "V2"
 }
@@ -71,14 +65,8 @@ resource "oci_core_ipsec_connection_tunnel_management" "oci-ipsec-connection-tun
   tunnel_id  = data.oci_core_ipsec_connection_tunnels.oci-ipsec-connection-tunnels.ip_sec_connection_tunnels[1].id
   depends_on = [data.oci_core_ipsec_connections.oci-ipsec-connections]
 
-  bgp_session_info {
-    customer_bgp_asn      = var.onprem_bgp_asn
-    customer_interface_ip = "${var.bgp_onprem_tunnel_b_ip}/30"
-    oracle_interface_ip   = "${var.bgp_oci_tunnel_b_ip}/30"
-  }
-
   display_name  = "oci-ipsec-tunnel-b"
-  routing       = "BGP"
+  routing       = "STATIC"
   shared_secret = var.psk_tunnel_b
   ike_version   = "V2"
 }
