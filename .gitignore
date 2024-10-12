@@ -1,3 +1,4 @@
 local.tfvars
 settings.json
 notes.txt
+terraform.tfstate*
