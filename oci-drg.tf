@@ -26,16 +26,15 @@ resource "oci_core_drg_attachment" "oci-vcn-drg-attachment" {
 
 // Add DRG route distribution for OCI VCN
 resource "oci_core_drg_route_distribution" "oci-vcn-drg-route-distribution" {
-  // Required
   drg_id            = oci_core_drg.oci-vcn-drg.id
   distribution_type = "IMPORT"
-  // optional
   display_name = "oci-vcn-drg-route-distribution"
 }
 resource "oci_core_drg_route_distribution_statement" "oci-vcn-drg-route-distributio-statements" {
-  // Required
   drg_route_distribution_id = oci_core_drg_route_distribution.oci-vcn-drg-route-distribution.id
   action                    = "ACCEPT"
-  match_criteria {}
+  match_criteria {
+    match_type = "MATCH_ALL"
+  }
   priority = 1
 }

@@ -47,30 +47,30 @@ variable "oci_region" {
 }
 variable "oci_vcn_cidr_block" {
   type    = string
-  default = "192.168.100.0/24"
+  default = "12.0.0.0/24"
 }
 variable "oci_subnet_cidr" {
   type    = string
-  default = "192.168.100.0/25"
+  default = "12.0.0.0/25"
 }
 
 #OCI related but specifically for ipsec and CPE
 variable "onprem_bgp_asn" {
-  default = "65065"
+  default = "65001"
+}
+
+variable "bgp_onprem_router_id" {
+  type    = string
+  default = "11.11.11.100"
 }
 ## First Tunnel
 variable "bgp_onprem_tunnel_a_ip" {
   type    = string
-  default = "10.10.100.101"
+  default = "11.11.11.101"
 }
-variable "bgp_onprem_router_id" {
-  type    = string
-  default = "10.10.100.100"
-}
-
 variable "bgp_oci_tunnel_a_ip" {
   type    = string
-  default = "10.10.100.102"
+  default = "11.11.11.102"
 }
 variable "psk_tunnel_a" {
   type    = string
@@ -80,17 +80,16 @@ variable "psk_tunnel_a" {
 ## Second Tunnel
 variable "bgp_onprem_tunnel_b_ip" {
   type    = string
-  default = "10.10.100.105"
+  default = "11.11.11.105"
 }
 variable "bgp_oci_tunnel_b_ip" {
   type    = string
-  default = "10.10.100.106"
+  default = "11.11.11.106"
 }
 variable "psk_tunnel_b" {
   type    = string
   default = "30993099"
 }
-
 
 # On-prem simulation related
 variable "on_prem_simulation_region" {
@@ -100,11 +99,11 @@ variable "on_prem_simulation_region" {
 }
 variable "onprem_vcn_cidr_block" {
   type    = string
-  default = "172.16.100.0/24"
+  default = "10.0.0.0/24"
 }
 variable "onprem_subnet_cidr" {
   type    = string
-  default = "172.16.100.0/25"
+  default = "10.0.0.0/25"
 }
 variable "onprem_instance_user" {
   description = "Oracle Linux user for onprem instances, including Libreswan+FRR CPE"

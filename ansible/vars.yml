@@ -1,11 +1,11 @@
 # Ansible vars file containing variable values from Terraform.
 
 # headends have public IPs
-cpe_public_ipv4: 152.67.253.6
-oracle_headend_tun_a: 129.159.42.121
-oracle_headend_tun_b: 152.67.254.73
+cpe_public_ipv4: 192.18.138.21
+oracle_headend_tun_a: 129.159.34.8
+oracle_headend_tun_b: 129.159.42.114
 
-cpe_local_private_ip: 172.16.100.16
+cpe_local_private_ip: 10.0.0.77
 
 psk_tun_a: 20992099
 psk_tun_b: 30993099
@@ -14,16 +14,16 @@ vti_a: "vti0"
 vti_b: "vti1" 
 
 # all vti-s have are /30 adddress
-vti_a_local_ip: 10.10.100.101
-bgp_router_id: 10.10.100.100 # TODO bgp router-id then bgp router-id 
-vti_a_remote_ip: 10.10.100.102
+vti_a_local_ip: 11.11.11.101
+bgp_router_id: 11.11.11.100 # TODO bgp router-id then bgp router-id 
+vti_a_remote_ip: 11.11.11.102
 
-vti_b_local_ip: 10.10.100.105
-vti_b_remote_ip: 10.10.100.106
+vti_b_local_ip: 11.11.11.105
+vti_b_remote_ip: 11.11.11.106
 
-bgp_asn_local: 65065
+bgp_asn_local: 65001
 bgp_asn_remote: 31898  # Oracle's ASN, DNT change
-cpe_onprem_vcn_cidr: 172.16.100.0/24
+cpe_onprem_vcn_cidr: 10.0.0.0/24
 
-remote_vcn_cidr: 192.168.100.0/24 # TODO why is it unused? as BGP will advertise anyways?
+remote_vcn_cidr: 12.0.0.0/24 # TODO why is it unused? as BGP will advertise anyways?
     
