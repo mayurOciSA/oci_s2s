@@ -1,11 +1,11 @@
 # Ansible vars file containing variable values from Terraform.
 
 # headends have public IPs
-cpe_public_ipv4: 192.18.138.21
-oracle_headend_tun_a: 129.159.34.8
-oracle_headend_tun_b: 129.159.42.114
+cpe_public_ipv4: 155.248.205.223
+oracle_headend_tun_a: 152.67.255.9
+oracle_headend_tun_b: 152.67.250.76
 
-cpe_local_private_ip: 10.0.0.77
+cpe_local_private_ip: 10.0.0.60
 
 psk_tun_a: 20992099
 psk_tun_b: 30993099

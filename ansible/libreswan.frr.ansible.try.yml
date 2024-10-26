@@ -123,12 +123,13 @@
           no ipv6 forwarding
           router bgp {{ bgp_asn_local }}
            bgp router-id {{ bgp_router_id }}
-           timers bgp 6 18
+           no bgp ebgp-requires-policy
+           no bgp network import-check
            neighbor {{ vti_a_remote_ip }} remote-as {{ bgp_asn_remote }}
            neighbor {{ vti_b_remote_ip }} remote-as {{ bgp_asn_remote }}
            neighbor {{ vti_a_remote_ip }} ebgp-multihop 255
-           neighbor {{ vti_a_remote_ip }} timers 6 18
            neighbor {{ vti_b_remote_ip }} ebgp-multihop 255
+           neighbor {{ vti_a_remote_ip }} timers 6 18
            neighbor {{ vti_b_remote_ip }} timers 6 18
            neighbor {{ vti_a_remote_ip }} next-hop-self
            neighbor {{ vti_b_remote_ip }} next-hop-self
@@ -143,10 +144,10 @@
             neighbor {{ vti_b_remote_ip }} route-map ALLOW-ALL in
             neighbor {{ vti_b_remote_ip }} route-map BGP-ADVERTISE-OUT out
            exit-address-family
-          ip prefix-list BGP-OUT seq 10 permit {{ cpe_onprem_vcn_cidr }}
-          route-map BGP-ADVERTISE-OUT permit 10
-           match ip address prefix-list BGP-OUT
-          route-map ALLOW-ALL permit 100
+           ip prefix-list BGP-OUT seq 10 permit {{ cpe_onprem_vcn_cidr }}
+           route-map BGP-ADVERTISE-OUT permit 10
+            match ip address prefix-list BGP-OUT
+           route-map ALLOW-ALL permit 100
         dest: /etc/frr/frr.conf
         mode: '0600'
       # notify: Restart frr
@@ -185,14 +186,20 @@
         state: restarted
       loop:
         - ipsec
-
+        - frr
 
     - name: Get Status
       ansible.builtin.shell: |
         ifconfig
         ip route show
         systemctl status ipsec
-
+        systemctl status frr
+        vtysh -c "show running-config"
+        vtysh -c "sh run"
+        vtysh -c "sh bgp sum"
+        cat /etc/frr/vtysh.conf
+        cat /etc/frr/frr.conf
+        sleep 10; vtysh -c "show ip bgp neighbors"
       register: tunnel_activation_result
       changed_when: false
 
