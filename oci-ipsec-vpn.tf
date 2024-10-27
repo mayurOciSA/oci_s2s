@@ -89,7 +89,7 @@ resource "oci_core_drg_attachment_management" "oci-vcn-drg-ipsec-attachment-tunn
   network_id         = data.oci_core_ipsec_connection_tunnels.oci-ipsec-connection-tunnels.ip_sec_connection_tunnels.0.id
   drg_id             = oci_core_drg.oci-vcn-drg.id
   display_name       = "oci-vcn-drg-ipsec-attachment-tunnel-a"
-  drg_route_table_id = oci_core_drg_route_table.oci-vcn-drg-route-table.id
+  drg_route_table_id = oci_core_drg_route_table.drg-route-table.id
 }
 
 resource "oci_core_drg_attachment_management" "oci-vcn-drg-ipsec-attachment-tunnel-b" {
@@ -98,7 +98,7 @@ resource "oci_core_drg_attachment_management" "oci-vcn-drg-ipsec-attachment-tunn
   network_id         = data.oci_core_ipsec_connection_tunnels.oci-ipsec-connection-tunnels.ip_sec_connection_tunnels.1.id
   drg_id             = oci_core_drg.oci-vcn-drg.id
   display_name       = "oci-vcn-drg-ipsec-attachment-tunnel-b"
-  drg_route_table_id = oci_core_drg_route_table.oci-vcn-drg-route-table.id
+  drg_route_table_id = oci_core_drg_route_table.drg-route-table.id
 }
 
 // Grab data for IPSEC tunnel routes for OCI VCN

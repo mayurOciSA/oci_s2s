@@ -18,17 +18,17 @@ resource "local_file" "ansible-vars-generate" {
 
     # all vti-s have are /30 adddress
     vti_a_local_ip: ${var.bgp_onprem_tunnel_a_ip}
-    bgp_router_id: ${var.bgp_onprem_router_id} # TODO bgp router-id then bgp router-id 
+    bgp_router_id: ${var.bgp_onprem_router_id} # TODO is bgp router-id arbitrary? 
     vti_a_remote_ip: ${var.bgp_oci_tunnel_a_ip}
 
     vti_b_local_ip: ${var.bgp_onprem_tunnel_b_ip}
     vti_b_remote_ip: ${var.bgp_oci_tunnel_b_ip}
 
     bgp_asn_local: ${var.onprem_bgp_asn}
-    bgp_asn_remote: 31898  # Oracle's ASN, DNT change
+    bgp_asn_remote: 31898  # Oracle's ASN, DNT dare to change
     cpe_onprem_vcn_cidr: ${var.onprem_vcn_cidr_block}
 
-    remote_vcn_cidr: ${var.oci_vcn_cidr_block} # TODO why is it unused? as BGP will advertise anyways?
+    remote_oci_vcn_cidr: ${var.oci_vcn_cidr_block} # TODO why is it unused? as BGP will advertise anyways?
     
     DOC
   filename = "./ansible/vars.yml"

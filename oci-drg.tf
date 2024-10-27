@@ -4,12 +4,11 @@ resource "oci_core_drg" "oci-vcn-drg" {
   display_name = "oci-vcn-drg"
 }
 
-// Create DRG Route Table for OCI cloud VCN
-// NOTE - no support for maanging default DRG route table natively 
-resource "oci_core_drg_route_table" "oci-vcn-drg-route-table" {
+resource "oci_core_drg_route_table" "drg-route-table" {
   drg_id                           = oci_core_drg.oci-vcn-drg.id
-  display_name                     = "oci-vcn-drg-route-table"
+  display_name                     = "drg-route-table"
   import_drg_route_distribution_id = oci_core_drg_route_distribution.oci-vcn-drg-route-distribution.id
+  is_ecmp_enabled = true # ECMP between 2 tunnel paths to onprem
 }
 
 //Create DRG attachment for OCI VCN
@@ -21,7 +20,7 @@ resource "oci_core_drg_attachment" "oci-vcn-drg-attachment" {
 
   }
   display_name       = "oci-vcn-drg-attachment"
-  drg_route_table_id = oci_core_drg_route_table.oci-vcn-drg-route-table.id
+  drg_route_table_id = oci_core_drg_route_table.drg-route-table.id
 }
 
 // Add DRG route distribution for OCI VCN
