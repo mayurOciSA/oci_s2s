@@ -1,0 +1,4 @@
+# Ansible vars file containing variable values from Terraform.
+cpe_or_nva_pvt_ip: 10.0.0.14
+cpe_bgp_asn: 65001
+

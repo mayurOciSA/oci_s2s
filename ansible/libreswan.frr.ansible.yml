@@ -6,9 +6,10 @@
     - ./vars.yml
 
   tasks:
-    - name: Disable SELinux
+    - name: Put SELinux in permissive mode, only logging actions that would otherwise have been blocked.
       ansible.posix.selinux:
-        state: disabled # TODO permissive?
+        policy: targeted
+        state: permissive
 
     # Install required packages
     - name: Install required packages
@@ -26,7 +27,11 @@
         state: present
         reload: true # sysctl -p
       loop:
+        # "net.ipv4.ip_forward=1" enables IP forwarding on the system. When set to 1, it allows the Linux machine to act as a router,
+        # forwarding IP packets from one network interface to another
         - { name: 'net.ipv4.ip_forward', value: '1' }
+
+        # as this node is going to act as CPE/BGP router, we disable sending and receiving of ICMP redirect messages, which alter kernel routes
         - { name: 'net.ipv4.conf.all.accept_redirects', value: '0' }
         - { name: 'net.ipv4.conf.all.send_redirects', value: '0' }
         - { name: 'net.ipv4.conf.default.send_redirects', value: '0' }
@@ -54,7 +59,6 @@
               mark=5/0xffffffff
               vti-interface={{ vti_a }}
               leftvti={{ vti_a_local_ip }}/30
-              # leftnexthop=%defaultroute
               vti-routing=no
               ikev2=yes
               ike=aes_cbc256-sha2_384;modp1536
@@ -76,7 +80,6 @@
               mark=6/0xffffffff
               vti-interface={{ vti_b }}
               leftvti={{ vti_b_local_ip }}/30
-              # leftnexthop=%defaultroute
               vti-routing=no
               ikev2=yes
               ike=aes_cbc256-sha2_384;modp1536
@@ -87,7 +90,6 @@
               pfs=yes
         dest: /etc/ipsec.d/oci-ipsec.conf
         mode: '0600'
-      # notify: Restart ipsec
 
     - name: Configure Libreswan ipsec.secrets
       ansible.builtin.copy:
@@ -96,53 +98,66 @@
           {{ cpe_public_ipv4 }} {{ oracle_headend_tun_b }} : PSK "{{ psk_tun_b }}"
         dest: /etc/ipsec.d/oci-ipsec.secrets
         mode: '0600'
-      # notify: Restart ipsec
 
-    - name: Configure FRR daemons
-      ansible.builtin.copy:
-        content: |
-          bgpd=yes
-          frr_profile="datacenter"
-          # service integrated-vtysh-config
-          # vtysh_enable=yes
-          # zebra_options="  -A 127.0.0.1 -s 90000000"
-          # bgpd_options="   -A 127.0.0.1"
-          # staticd_options="-A 127.0.0.1"
-        dest: /etc/frr/daemons
+    - name: Enable and Start ipsec service
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: restarted
+      loop:
+        - ipsec
+
+    - name: Turn on bgpd deamon config in FRR
+      ansible.builtin.lineinfile:
+        path: /etc/frr/daemons
+        regexp: 'bgpd=no'
+        line: 'bgpd=yes'
         mode: '0600'
 
     - name: Configure FRR bgpd.conf
       ansible.builtin.copy:
         content: |
+          hostname {{ ansible_hostname }}
           log file /var/log/frr/frr.log
-          !
-          interface {{ vti_a }}
-           ip address {{ vti_a_local_ip }}/30
-          !
-          interface {{ vti_b }}
-           ip address {{ vti_b_local_ip }}/30
-          !
+          no ipv6 forwarding
           router bgp {{ bgp_asn_local }}
            bgp router-id {{ bgp_router_id }}
+           no bgp ebgp-requires-policy
+           no bgp network import-check
            neighbor {{ vti_a_remote_ip }} remote-as {{ bgp_asn_remote }}
-           neighbor {{ vti_b_remote_ip }} remote-as {{ bgp_asn_remote }}
            neighbor {{ vti_a_remote_ip }} ebgp-multihop 255
+           neighbor {{ vti_a_remote_ip }} timers 6 18
            neighbor {{ vti_a_remote_ip }} next-hop-self
+           neighbor {{ vti_a_remote_ip }} activate
+           neighbor {{ vti_b_remote_ip }} remote-as {{ bgp_asn_remote }}
            neighbor {{ vti_b_remote_ip }} ebgp-multihop 255
+           neighbor {{ vti_b_remote_ip }} timers 6 18
            neighbor {{ vti_b_remote_ip }} next-hop-self
-           !
+           neighbor {{ vti_b_remote_ip }} activate
+           neighbor {{ gobgp_bgp_speaker_ip }} remote-as 65005
+           neighbor {{ gobgp_bgp_speaker_ip }} ebgp-multihop 255
+           neighbor {{ gobgp_bgp_speaker_ip }} timers 6 18
+           neighbor {{ gobgp_bgp_speaker_ip }} next-hop-self
+           neighbor {{ gobgp_bgp_speaker_ip }} activate
            address-family ipv4 unicast
             network {{ cpe_onprem_vcn_cidr }}
-            neighbor {{ vti_a_remote_ip }} activate
-            neighbor {{ vti_b_remote_ip }} activate
-            redistribute static
+            neighbor {{ vti_a_remote_ip }} soft-reconfiguration inbound
+            neighbor {{ vti_a_remote_ip }} route-map ALLOW-ALL in
+            neighbor {{ vti_a_remote_ip }} route-map BGP-ADVERTISE-OUT out
+            neighbor {{ vti_b_remote_ip }} soft-reconfiguration inbound
+            neighbor {{ vti_b_remote_ip }} route-map ALLOW-ALL in
+            neighbor {{ vti_b_remote_ip }} route-map BGP-ADVERTISE-OUT out
+            neighbor {{ gobgp_bgp_speaker_ip }} soft-reconfiguration inbound
+            neighbor {{ gobgp_bgp_speaker_ip }} route-map ALLOW-ALL in
+            neighbor {{ gobgp_bgp_speaker_ip }} route-map BGP-ADVERTISE-OUT out
            exit-address-family
-           !
-           line vty
-           !
+           ip prefix-list BGP-LIBERAL seq 10 permit 0.0.0.0/0
+           route-map BGP-ADVERTISE-OUT permit 10
+             match ip address prefix-list BGP-LIBERAL
+           exit
+           route-map ALLOW-ALL permit 100
         dest: /etc/frr/frr.conf
         mode: '0600'
-      # notify: Restart frr
 
     - name: Allow IPSec and BGP traffic in firewall
       ansible.posix.firewalld:
@@ -165,7 +180,7 @@
         name: firewalld
         state: reloaded
 
-    - name: Disable firewalld # TODO remove after debugging
+    - name: Disable firewalld # keeping for ICMP pings for testing
       ansible.builtin.systemd:
         name: firewalld
         state: stopped
@@ -180,9 +195,11 @@
         - ipsec
         - frr
 
-    - name: Get Status
+    - name: Get Status, just for information
       ansible.builtin.shell: |
+        sleep 10
         ifconfig
+        ip route show
         systemctl status ipsec
         systemctl status frr
         vtysh -c "show running-config"
@@ -190,21 +207,11 @@
         vtysh -c "sh bgp sum"
         cat /etc/frr/vtysh.conf
         cat /etc/frr/frr.conf
-        sleep 10; vtysh -c "show ip bgp neighbors"
+        vtysh -c "show ip bgp neighbors"
+        cat /var/log/frr/frr.log
       register: tunnel_activation_result
       changed_when: false
 
     - name: Display tunnel activation output
       ansible.builtin.debug:
         var: tunnel_activation_result
-
-  handlers:
-    - name: Restart ipsec
-      ansible.builtin.systemd:
-        name: ipsec
-        state: restarted
-
-    - name: Restart frr
-      ansible.builtin.systemd:
-        name: frr
-        state: restarted

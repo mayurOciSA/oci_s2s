@@ -31,6 +31,16 @@ output "onprem-vcn-instance-private-ip" {
   value = oci_core_instance.onprem-vcn-instance.private_ip
 }
 
+# Output for compute public IPs for onprem gobgp VCN
+output "onprem-vcn-gobgp-instance-public-ip" {
+  value = oci_core_instance.onprem-vcn-gobgp.public_ip
+}
+
+# Output for compute private IPs for onprem gobgp VCN
+output "onprem-vcn-gobgp-instance-private-ip" {
+  value = oci_core_instance.onprem-vcn-gobgp.private_ip
+}
+
 # Output for compute public IPs for onprem libreswan VCN
 output "onprem-vcn-libreswan-instance-public-ip" {
   value = oci_core_instance.onprem-vcn-libreswan-instance.public_ip

@@ -1,0 +1,30 @@
+# Ansible vars file containing variable values from Terraform.
+
+# headends have public IPs
+cpe_public_ipv4: 155.248.196.231
+oracle_headend_tun_a: 129.159.42.114
+oracle_headend_tun_b: 129.159.34.8
+
+cpe_local_private_ip: 10.0.0.14
+
+psk_tun_a: 20992099
+psk_tun_b: 30993099
+
+vti_a: "vti0"
+vti_b: "vti1" 
+
+# all vti-s have are /30 adddress
+vti_a_local_ip: 11.11.11.101
+bgp_router_id: 11.11.11.100 # TODO is bgp router-id arbitrary? 
+vti_a_remote_ip: 11.11.11.102
+
+vti_b_local_ip: 11.11.11.105
+vti_b_remote_ip: 11.11.11.106
+
+bgp_asn_local: 65001
+bgp_asn_remote: 31898  # Oracle's ASN, DNT dare to change
+cpe_onprem_vcn_cidr: 10.0.0.0/24
+
+remote_oci_vcn_cidr: 12.0.0.0/24 # TODO why is it unused? as BGP will advertise anyways?
+gobgp_bgp_speaker_ip: 10.0.0.4
+    

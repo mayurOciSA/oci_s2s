@@ -1,0 +1,91 @@
+- name: Install & Configure GoBGP
+  hosts: all
+  become: true
+  vars_files:
+    - ./vars.yml
+
+  tasks:
+    - name: Put SELinux in permissive mode, only logging actions that would otherwise have been blocked.
+      ansible.posix.selinux:
+        policy: targeted
+        state: permissive
+
+    - name: Disable firewalld
+      ansible.builtin.systemd:
+        name: firewalld
+        state: stopped
+        enabled: false
+
+    - name: Setup gobgp.install.sh
+      ansible.builtin.copy:
+        content: |
+          #!/bin/sh
+
+          echo "Installing gobgpd"
+          setenforce 0
+          systemctl stop firewalld
+
+          mkdir -p /tmp/gobgp
+          cd /tmp/gobgp && curl -s -L -O https://github.com/osrg/gobgp/releases/download/v3.30.0/gobgp_3.30.0_linux_arm64.tar.gz
+          tar -xvzf gobgp_3.30.0_linux_arm64.tar.gz
+          mv gobgp /usr/bin/
+          mv gobgpd /usr/bin/
+
+          echo "Setup gobgpd user"
+
+          groupadd --system gobgpd
+          useradd --system -d /var/lib/gobgpd -s /bin/bash -g gobgpd gobgpd
+          mkdir -p /var/{lib,run,log}/gobgpd
+          chown -R gobgpd:gobgpd /var/{lib,run,log}/gobgpd
+          mkdir -p /etc/gobgpd
+          chown -R gobgpd:gobgpd /etc/gobgpd
+
+          DEFAULT_ROUTE_INTERFACE=$(cat /proc/net/route | cut -f1,2 | grep 00000000 | cut -f1)
+          DEFAULT_ROUTE_INTERFACE_IPV4=$(ip addr show dev $DEFAULT_ROUTE_INTERFACE | grep "inet " | sed "s/.*inet //" | cut -d"/" -f1)
+          SELF_BGP_AS=65005
+          BGP_PEER="{{ cpe_or_nva_pvt_ip }}"
+          cat << EOF > /etc/gobgpd/gobgpd.conf
+          [global.config]
+            as = $SELF_BGP_AS
+            router-id = "$DEFAULT_ROUTE_INTERFACE_IPV4"
+
+          [[neighbors]]
+            [neighbors.config]
+              neighbor-address = "$BGP_PEER"
+              peer-as = {{ cpe_bgp_asn }}
+          EOF
+
+          systemctl enable gobgpd
+          systemctl start gobgpd
+        dest: /home/opc/gobgp_install.sh
+        mode: '0777'
+
+    - name: Setup gobgp.service
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=GoBGP Routing Daemon
+          Wants=network.target
+          After=network.target
+
+          [Service]
+          Type=notify
+          ExecStartPre=/usr/bin/gobgpd -f /etc/gobgpd/gobgpd.conf -d
+          ExecStart=/usr/bin/gobgpd -f /etc/gobgpd/gobgpd.conf --sdnotify
+          ExecReload=/usr/bin/kill -HUP $MAINPID
+          StandardOutput=journal
+          StandardError=journal
+          User=gobgpd
+          Group=gobgpd
+          AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /usr/lib/systemd/system/gobgpd.service
+        mode: '0777'
+
+    - name: Install GoBGP and it's deamon
+      ansible.builtin.shell: ./gobgp_install.sh >> gobgpinstall.log
+      args:
+        chdir: /home/opc/
+      changed_when: false
