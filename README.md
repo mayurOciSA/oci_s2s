@@ -15,7 +15,7 @@ Please note, VM with LibreSwan and FRR, together make up the real CPE.
 
 ## How to Deploy
 
-1. Download or clone the repo to your local machine
+1. Clone the repo to your local machine.
   ```sh
   git clone -b "ipsec+bgp" git@github.com:mayurOciSA/oci_s2s.git
   ```
@@ -32,8 +32,8 @@ Please note, VM with LibreSwan and FRR, together make up the real CPE.
   ```
 
 ## TF Output and Testing  
-After running this TF, you will have setup as shown in the above diagram.
-And output on your shell similar to below that has bunch of IP addresses.
+
+After running this TF, you will have setup as shown in the above diagram. And output on your shell similar to below that has bunch of IP addresses.
 
 ```sh
 oci-ipsec-connection-tunnel-a = "129.XX.XX.XX"
@@ -63,8 +63,8 @@ sh ip route
 sh bgp sum
 ```
 
-## Limitation
+## Limitations
 1. This is just for POC. Please finetune as per your requrenments for production usecase.
-2. In real onprem setup when you add new network to onprem OR say in this onprem simulation if you add new CIDR to your VCN, FRR will need to updated with the static route with new CIDR and FRR being the next hop. 
-3. Exactely opposite of above is also true. If you add new VCN to on OCI side, FRR will get its new CIDR but it can't/won't update the route tables of subnets of VCN simulating the onprem.
+2. In real onprem setup when you add a new network to your existing onprem network OR, say in this onprem simulation if you add new CIDR to your VCN; FRR needs to be updated with the static route with new CIDR as destination and FRR being its next hop. 
+3. Exactely opposite of above is also true. If you add new VCN to on OCI side, FRR will get its new CIDR/route via BGP but it can't/won't update the route tables of subnets of the VCN which is simulating the onprem.
    
