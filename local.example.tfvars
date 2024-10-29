@@ -8,5 +8,4 @@ fingerprint      = "11:26:......"
 private_key_path = "/Users/<username>/.oci/oci_api_key.pem"
 
 ssh_public_key             = "ssh-rsa AAAAB3..........."
-
-# ssh_private_key_local_path = "/Users/mraleras/.ssh/id_rsa"
+ssh_private_key_local_path = "/Users/<username>/.ssh/id_rsa"
