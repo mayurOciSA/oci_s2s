@@ -10,7 +10,8 @@
 Please note onprem is simulated within same or another OCI region, depends on how you configure it with TF input variables. 
 <kbd><img src="images/ocis2s.drawio.png?raw=true" width="1250" /></kbd>
 
-For configuration of LibreSwan and FRR, please refer to [libreswan.frr.ansible.yml](ansible/libreswan.frr.ansible.yml). 
+For configuration of LibreSwan and FRR, please refer to [libreswan.frr.ansible.yml](ansible/libreswan.frr.cpe.ansible.yml). 
+Please note, VM with LibreSwan and FRR, together make up the real CPE. 
 
 ## How to Deploy
 
@@ -18,7 +19,7 @@ For configuration of LibreSwan and FRR, please refer to [libreswan.frr.ansible.y
   ```sh
   git clone -b "ipsec+bgp" git@github.com:mayurOciSA/oci_s2s.git
   ```
-1. Copy `local.example.tfvar` as local.tfvars, and update `local.tfvars` with values as suitable to your environment. The contain variable which do not have any default values and hence their values must be provided by you. Please go through [variables.tf](variables.tf). to include any additional and optional configuration variables as per your needs in local.tfvars.
+1. Copy `local.example.tfvars` as local.tfvars, and update `local.tfvars` with values as suitable to your environment. The contain variable which do not have any default values and hence their values must be provided by you. Please go through [variables.tf](variables.tf). to include any additional and optional configuration variables as per your needs in local.tfvars.
 2. Run Terraform
   ```sh
   terraform init

@@ -31,7 +31,7 @@ resource "oci_core_instance" "onprem-vcn-libreswan-instance" {
 }
 
 # Export Terraform variable values to each time newly created ./ansible/vars.yml file, 
-# which provides it in turn to ansible libreswan.frr.ansible.try.yml
+# which provides them, in turn to ansible libreswan.frr.cpe.ansible.yml
 resource "local_file" "ansible-vars-generate" {
   content  = <<-DOC
     # Ansible vars file containing variable values from Terraform.
@@ -84,7 +84,7 @@ resource "null_resource" "execute-ansible-playbook" {
   }
 
   provisioner "local-exec" {
-    command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.onprem_instance_user} -i '${oci_core_instance.onprem-vcn-libreswan-instance.public_ip},' --private-key ${var.ssh_private_key_local_path} ./ansible/libreswan.frr.ansible.yml"
+    command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ${var.onprem_instance_user} -i '${oci_core_instance.onprem-vcn-libreswan-instance.public_ip},' --private-key ${var.ssh_private_key_local_path} ./ansible/libreswan.frr.cpe.ansible.yml"
   }
 }
 
